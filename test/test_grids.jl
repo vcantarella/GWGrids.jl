@@ -26,10 +26,10 @@ end
         delr, delc, thickness, top = 10.0, 10.0, 5.0, 100.0
 
         grid = PlanarRegularGrid(
-            nlay, nrow, ncol;
-            delr=delr, delc=delc, 
-            layer_thickness=thickness, 
-            top=top,
+            nlay, nrow, ncol,
+            delr, delc,
+            thickness,
+            top;
             origin=(1000.0, 2000.0),
             angrot=0.0
         )
@@ -52,7 +52,7 @@ end
 
         # Test type stability (constructor will allocate, so we test its type)
         @test grid isa PlanarRegularGrid{Float64, Vector{Float64}}
-        @test check_inferred(() -> PlanarRegularGrid(nlay, nrow, ncol; delr=delr, delc=delc, layer_thickness=thickness, top=top))
+        @test check_inferred(() -> PlanarRegularGrid(nlay, nrow, ncol, delr, delc, thickness, top))
     end
 
     @testset "2. Coordinate Transforms (Non-Allocating)" begin
@@ -85,10 +85,10 @@ end
 
     @testset "3. Grid Intersection (Non-Allocating)" begin
         grid = PlanarRegularGrid(
-            3, 40, 50; 
-            delr=10.0, delc=10.0, 
-            layer_thickness=5.0, 
-            top=100.0
+            3, 40, 50, 
+            10.0, 10.0, 
+            5.0, 
+            100.0
         ) # local origin (0,0)
         
         # --- Test points ---
@@ -134,10 +134,10 @@ end
         
         # --- Test global coords (with rotation) ---
         grid_rot = PlanarRegularGrid(
-            3, 40, 50; 
-            delr=10.0, delc=10.0, 
-            layer_thickness=5.0, 
-            top=100.0,
+            3, 40, 50, 
+            10.0, 10.0, 
+            5.0, 
+            100.0;
             origin=(1000.0, 2000.0),
             angrot = -π / 2.0 # -90 deg rotation
         )

@@ -76,17 +76,17 @@ the same length, width, and thickness.
 - `angrot::Real = 0.0`: Counter-clockwise rotation angle in radians.
 """
 function PlanarRegularGrid(
-    nlay::Int, nrow::Int, ncol::Int;
-    delr::Real,                 # Uniform column spacing (delta-x)
-    delc::Real,                 # Uniform row spacing (delta-y)
-    layer_thickness::Real,      # Uniform layer thickness (delta-z)
-    top::Real,                  # Top elevation of the grid
+    nlay::Int, nrow::Int, ncol::Int,
+    Δx::Real,                 # Uniform column spacing (delta-x)
+    Δy::Real,                 # Uniform row spacing (delta-y)
+    Δz::Real,                 # Uniform thickness for all layers (delta-z)
+    top::Real;                # Top elevation of the grid
     origin::Tuple{<:Real, <:Real} = (0.0, 0.0),
     angrot::Real = 0.0
 )
     # Determine the promotion type for all floating-point geometry
     T = promote_type(
-        typeof(delr), typeof(delc), typeof(layer_thickness), typeof(top), 
+        typeof(Δx), typeof(Δy), typeof(Δz), typeof(top), 
         eltype(origin), typeof(angrot)
     )
     
@@ -94,9 +94,9 @@ function PlanarRegularGrid(
     T_float = T <: AbstractFloat ? T : Float64
 
     # Convert all inputs to the promoted float type
-    delr_t = T_float(delr)
-    delc_t = T_float(delc)
-    layer_thickness_t = T_float(layer_thickness)
+    Δx_t = T_float(Δx)
+    Δy_t = T_float(Δy)
+    Δz_t = T_float(Δz)
     top_t = T_float(top)
     origin_tup = (T_float(origin[1]), T_float(origin[2]))
     angrot_val = T_float(angrot)
@@ -104,14 +104,14 @@ function PlanarRegularGrid(
     # --- Create the geometry arrays ---
     
     # Fill standard CPU `Vector`s with the uniform values
-    delr_vec = fill(delr_t, ncol)
-    delc_vec = fill(delc_t, nrow)
-    
+    delr_vec = fill(Δx_t, ncol)
+    delc_vec = fill(Δy_t, nrow)
+
     # Calculate planar bottom elevations
     # botm[1] = top - 1*thickness
     # botm[2] = top - 2*thickness
     # ...
-    botm_vec = [top_t - k * layer_thickness_t for k in 1:nlay]
+    botm_vec = [top_t - k * Δz_t for k in 1:nlay]
 
     # --- Call the main (inner) constructor ---
     # This will create a grid using standard `Vector`s for CPU usage.
@@ -128,36 +128,36 @@ function PlanarRegularGrid(
 end
 
 
-"""
-Holds the flow solution (head and face flows) on a grid.
+# """
+# Holds the flow solution (head and face flows) on a grid.
 
-The array types `ArrT3D` can be `Array` (for CPU) or `CuArray` (for GPU).
-"""
-struct FlowSolution{
-    T<:AbstractFloat, 
-    ArrT3D<:AbstractArray{T, 3}, 
-    G<:PlanarRegularGrid{T}
-}
-    grid::G
-    head::ArrT3D  # Cell-centered head, size (nlay, nrow, ncol)
+# The array types `ArrT3D` can be `Array` (for CPU) or `CuArray` (for GPU).
+# """
+# struct FlowSolution{
+#     T<:AbstractFloat, 
+#     ArrT3D<:AbstractArray{T, 3}, 
+#     G<:PlanarRegularGrid{T}
+# }
+#     grid::G
+#     head::ArrT3D  # Cell-centered head, size (nlay, nrow, ncol)
 
-    # Face flows stored in a NamedTuple for clarity
-    flows::NamedTuple{(:right, :front, :lower), NTuple{3, ArrT3D}}
+#     # Face flows stored in a NamedTuple for clarity
+#     flows::NamedTuple{(:right, :front, :lower), NTuple{3, ArrT3D}}
 
-    # Constructor
-    function FlowSolution(
-        grid::G, 
-        head::ArrT3D, 
-        # This constructor signature is flexible and correct
-        flows::NamedTuple{(:right, :front, :lower), <:NTuple{3, ArrT3D}}
-    ) where {T<:AbstractFloat, ArrT3D<:AbstractArray{T, 3}, G<:PlanarRegularGrid{T}}
+#     # Constructor
+#     function FlowSolution(
+#         grid::G, 
+#         head::ArrT3D, 
+#         # This constructor signature is flexible and correct
+#         flows::NamedTuple{(:right, :front, :lower), <:NTuple{3, ArrT3D}}
+#     ) where {T<:AbstractFloat, ArrT3D<:AbstractArray{T, 3}, G<:PlanarRegularGrid{T}}
         
-        dims = (grid.nlay, grid.nrow, grid.ncol)
-        @assert size(head) == dims "Head array has incorrect dimensions"
-        @assert size(flows.right) == dims "Flow-Right-Face has incorrect dimensions"
-        @assert size(flows.front) == dims "Flow-Front-Face has incorrect dimensions"
-        @assert size(flows.lower) == dims "Flow-Lower-Face has incorrect dimensions"
+#         dims = (grid.nlay, grid.nrow, grid.ncol)
+#         @assert size(head) == dims "Head array has incorrect dimensions"
+#         @assert size(flows.right) == dims "Flow-Right-Face has incorrect dimensions"
+#         @assert size(flows.front) == dims "Flow-Front-Face has incorrect dimensions"
+#         @assert size(flows.lower) == dims "Flow-Lower-Face has incorrect dimensions"
         
-        new{T, ArrT3D, G}(grid, head, flows)
-    end
-end
+#         new{T, ArrT3D, G}(grid, head, flows)
+#     end
+# end
