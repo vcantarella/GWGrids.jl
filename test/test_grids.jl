@@ -157,4 +157,30 @@ end
         # @test check_inferred(() -> intersect_point_to_grid(p_global, grid_rot; local_coords=false))
     end
 
+    @testset "4. Linear Indices" begin
+        grid = PlanarRegularGrid(
+            3, 40, 50, 
+            10.0, 10.0, 
+            5.0, 
+            100.0
+        )
+        
+        # Test _to_linear_index and _to_lrc round trip
+        for (l, r, c) in [(1,1,1), (2,1,1), (1,2,1), (1,1,2), (3,40,50)]
+            idx = GWGrids.get_linear_index(grid, l, r, c)
+            @test GWGrids._to_lrc(idx, grid) == (l, r, c)
+        end
+
+        # Test _to_linear_indices (vector version)
+        locs = [(1,1,1), (2,1,1), (3,40,50)]
+        expected = [GWGrids.get_linear_index(grid, l, r, c) for (l, r, c) in locs]
+        @test GWGrids._to_linear_indices(grid, locs) == expected
+
+        # Test bounds checking
+        @test_throws ErrorException GWGrids.get_linear_index(grid, 0, 1, 1)
+        @test_throws ErrorException GWGrids.get_linear_index(grid, 4, 1, 1)
+        @test_throws ErrorException GWGrids._to_lrc(0, grid)
+        @test_throws ErrorException GWGrids._to_lrc(3*40*50 + 1, grid)
+    end
+
 end

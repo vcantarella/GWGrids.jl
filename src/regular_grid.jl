@@ -1,4 +1,4 @@
-struct PlanarRegularGrid{T<:AbstractFloat, V<:AbstractVector{T}}
+struct PlanarRegularGrid{T<:AbstractFloat, V<:AbstractVector{T}, I<:AbstractVector{Int}}
     # --- Dimensions ---
     nlay::Int
     nrow::Int
@@ -9,6 +9,9 @@ struct PlanarRegularGrid{T<:AbstractFloat, V<:AbstractVector{T}}
     delc::V
     top::T
     botm::V # Length NLAY, elevations of layer bottoms
+    
+    # --- Properties ---
+    li::I # Layer Type Indicator (e.g., 0=confined, 1=convertible)
 
     # --- Pre-computed for Lookups (The Fix) ---
     delr_edges::V  # = cumsum(delr)
@@ -28,15 +31,43 @@ struct PlanarRegularGrid{T<:AbstractFloat, V<:AbstractVector{T}}
         delc::V, 
         top::T, 
         botm::V;
+        li::Union{Nothing, I} = nothing,
         origin::Tuple{T, T} = (zero(T), zero(T)),
         angrot::T = zero(T)
-    ) where {T<:AbstractFloat, V<:AbstractVector{T}}
+    ) where {T<:AbstractFloat, V<:AbstractVector{T}, I<:AbstractVector{Int}}
 
         nlay = length(botm)
         nrow = length(delc)
         ncol = length(delr)
         
         @assert nlay > 0 && nrow > 0 && ncol > 0 "Grid dimensions must be positive"
+        
+        # Default li to zeros (confined) if not provided
+        # We need to ensure the vector type matches the device of V if possible,
+        # but usually li is just a small 1D vector. 
+        # For simplicity, if V is a GPU array, the user should pass a GPU Int array for li.
+        # If defaulted, we'll make a CPU Vector{Int}.
+        
+        local_li::I = if li === nothing
+             # If V is a CuArray, we can't easily infer the corresponding Int CuArray type 
+             # without CUDA.jl dependencies here.
+             # Ideally, the user provides it.
+             # Fallback: assume standard Vector{Int} and let the user convert later if needed,
+             # OR strictly require it if V is not a standard Vector.
+             if V <: Vector
+                 zeros(Int, nlay)
+             else
+                 # If we are on GPU, creating a CPU array might be mixed usage.
+                 # But let's create a CPU one and let the user handle transfer if needed,
+                 # or error out if strictness is preferred.
+                 # For now: safe default.
+                 zeros(Int, nlay)
+             end
+        else
+            li
+        end
+        
+        @assert length(local_li) == nlay "Length of li must match nlay"
 
         # --- Pre-compute and store ---
         delr_edges = cumsum(delr)
@@ -45,10 +76,10 @@ struct PlanarRegularGrid{T<:AbstractFloat, V<:AbstractVector{T}}
         sin_rot = sin(angrot)
         # ---
         
-        # Note: If `V` is a CuArray, cumsum() will return a CuArray. This is correct!
-        new{T, V}(
+        new{T, V, typeof(local_li)}(
             nlay, nrow, ncol, 
             delr, delc, top, botm,
+            local_li,
             delr_edges, delc_edges,
             origin, angrot,
             cos_rot, sin_rot
@@ -72,6 +103,7 @@ the same length, width, and thickness.
 - `top::Real`: The elevation of the grid top (a single planar value).
 
 # Keyword Arguments
+- `li::Vector{Int}`: Layer indicator array (length nlay). Defaults to zeros.
 - `origin::Tuple{<:Real, <:Real} = (0.0, 0.0)`: Global (x, y) coordinates of the grid's (0, 0) local corner.
 - `angrot::Real = 0.0`: Counter-clockwise rotation angle in radians.
 """
@@ -81,6 +113,7 @@ function PlanarRegularGrid(
     Δy::Real,                 # Uniform row spacing (delta-y)
     Δz::Real,                 # Uniform thickness for all layers (delta-z)
     top::Real;                # Top elevation of the grid
+    li::Union{Vector{Int}, Nothing} = nothing,
     origin::Tuple{<:Real, <:Real} = (0.0, 0.0),
     angrot::Real = 0.0
 )
@@ -108,32 +141,25 @@ function PlanarRegularGrid(
     delc_vec = fill(Δy_t, nrow)
 
     # Calculate planar bottom elevations
-    # botm[1] = top - 1*thickness
-    # botm[2] = top - 2*thickness
-    # ...
     botm_vec = [top_t - k * Δz_t for k in 1:nlay]
+    
+    # Default li if not provided
+    li_vec = (li === nothing) ? zeros(Int, nlay) : li
 
     # --- Call the main (inner) constructor ---
-    # This will create a grid using standard `Vector`s for CPU usage.
-    # The inner constructor will automatically pre-compute the
-    # `delr_edges`, `delc_edges`, `cos_rot`, and `sin_rot` fields.
     return PlanarRegularGrid(
         delr_vec, 
         delc_vec, 
         top_t, 
         botm_vec; 
+        li=li_vec,
         origin=origin_tup, 
         angrot=angrot_val
     )
 end
 
 
-# """
-# Holds the flow solution (head and face flows) on a grid.
 
-# The array types `ArrT3D` can be `Array` (for CPU) or `CuArray` (for GPU).
-# """
-# struct FlowSolution{
 #     T<:AbstractFloat, 
 #     ArrT3D<:AbstractArray{T, 3}, 
 #     G<:PlanarRegularGrid{T}
