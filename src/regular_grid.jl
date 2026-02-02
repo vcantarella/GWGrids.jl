@@ -1,4 +1,12 @@
-struct PlanarRegularGrid{T<:AbstractFloat, V<:AbstractVector{T}, I<:AbstractVector{Int}}
+abstract type GWGrid end
+
+"""
+    get_ndrange(grid::GWGrid)
+Returns the tuple (dim1, dim2, ...) required for the kernel launch.
+"""
+function get_ndrange end
+
+struct PlanarRegularGrid{T<:AbstractFloat, V<:AbstractVector{T}, I<:AbstractVector{Int}} <: GWGrid
     # --- Dimensions ---
     nlay::Int
     nrow::Int
@@ -27,7 +35,7 @@ struct PlanarRegularGrid{T<:AbstractFloat, V<:AbstractVector{T}, I<:AbstractVect
 
     # Inner constructor
     function PlanarRegularGrid(
-        delr::V, 
+        delr::V,
         delc::V, 
         top::T, 
         botm::V;
@@ -77,7 +85,7 @@ struct PlanarRegularGrid{T<:AbstractFloat, V<:AbstractVector{T}, I<:AbstractVect
         # ---
         
         new{T, V, typeof(local_li)}(
-            nlay, nrow, ncol, 
+            nlay, nrow, ncol,
             delr, delc, top, botm,
             local_li,
             delr_edges, delc_edges,
@@ -158,32 +166,4 @@ function PlanarRegularGrid(
     )
 end
 
-
-
-#     T<:AbstractFloat, 
-#     ArrT3D<:AbstractArray{T, 3}, 
-#     G<:PlanarRegularGrid{T}
-# }
-#     grid::G
-#     head::ArrT3D  # Cell-centered head, size (nlay, nrow, ncol)
-
-#     # Face flows stored in a NamedTuple for clarity
-#     flows::NamedTuple{(:right, :front, :lower), NTuple{3, ArrT3D}}
-
-#     # Constructor
-#     function FlowSolution(
-#         grid::G, 
-#         head::ArrT3D, 
-#         # This constructor signature is flexible and correct
-#         flows::NamedTuple{(:right, :front, :lower), <:NTuple{3, ArrT3D}}
-#     ) where {T<:AbstractFloat, ArrT3D<:AbstractArray{T, 3}, G<:PlanarRegularGrid{T}}
-        
-#         dims = (grid.nlay, grid.nrow, grid.ncol)
-#         @assert size(head) == dims "Head array has incorrect dimensions"
-#         @assert size(flows.right) == dims "Flow-Right-Face has incorrect dimensions"
-#         @assert size(flows.front) == dims "Flow-Front-Face has incorrect dimensions"
-#         @assert size(flows.lower) == dims "Flow-Lower-Face has incorrect dimensions"
-        
-#         new{T, ArrT3D, G}(grid, head, flows)
-#     end
-# end
+@inline get_ndrange(g::PlanarRegularGrid) = (g.nlay, g.nrow, g.ncol)
