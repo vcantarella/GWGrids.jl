@@ -50,11 +50,8 @@ end
 """
     compute layer, row and col from liner index, idx
 """
-function get_lrc(idx, grid::PlanarRegularGrid)
-    # Perform bounds checking
-    if !(1 <= idx <= grid.nlay * grid.nrow * grid.ncol)
-        error("Linear index $idx is out of bounds for grid size ($(grid.nlay), $(grid.nrow), $(grid.ncol))")
-    end
+@inline function get_lrc(idx:Int,
+    grid::PlanarRegularGrid)
 
     # Reverse the mapping: idx = (c - 1) * grid.nrow * grid.nlay + (r - 1) * grid.nlay + l
     idx0 = idx - 1
