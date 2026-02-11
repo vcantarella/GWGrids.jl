@@ -50,7 +50,7 @@ end
 """
     compute layer, row and col from liner index, idx
 """
-@inline function get_lrc(idx:Int,
+@inline function get_lrc(idx::Int,
     grid::PlanarRegularGrid)
 
     # Reverse the mapping: idx = (c - 1) * grid.nrow * grid.nlay + (r - 1) * grid.nlay + l
