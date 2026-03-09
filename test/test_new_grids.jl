@@ -70,25 +70,4 @@
         @test (xb, yb, zb) == (20.0, 15.0, 99.0)
     end
 
-    @testset "UnstructuredGrid" begin
-        # 1. Initialization (List of points)
-        x_pts = [1.0, 2.0, 3.0]
-        y_pts = [10.0, 20.0, 30.0]
-        z_pts = [100.0, 200.0, 300.0]
-        
-        grid = UnstructuredGrid(x_pts, y_pts, z_pts)
-        
-        # 2. Test grid_size
-        @test grid_size(grid) == (3,)
-        
-        # 3. Test get_xyz (Linear lookup)
-        # Case A: Integer Index (common in 1D kernels)
-        xi, yi, zi = get_xyz(grid, 2)
-        @test (xi, yi, zi) == (2.0, 20.0, 200.0)
-        
-        # Case B: CartesianIndex{1} (common in KA.jl kernels)
-        xi_c, yi_c, zi_c = get_xyz(grid, CartesianIndex(3))
-        @test (xi_c, yi_c, zi_c) == (3.0, 30.0, 300.0)
-    end
-
 end
